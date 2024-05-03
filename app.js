@@ -33,7 +33,8 @@ let app = {
     mode: ["test", "foo", "bar"]
   },
   curve: new AnimationCurve(),
-  gradient: new Gradient()
+  gradient: new Gradient(),
+  experience: new Experience()
 }
 
 
@@ -112,7 +113,9 @@ document.addEventListener("DOMContentLoaded", (event) => {
 
           this.time.update()
 
-
+          this.experience.update(app)
+          this.experience.draw(app)
+          
           // Try to detect faces
           app.tracker.detect()
 
