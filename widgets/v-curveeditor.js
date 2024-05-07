@@ -1,6 +1,8 @@
 class AnimationCurve {
 	constructor() {
 		this.points = []
+
+
 	}
 
 	addPoint(x, y) {
@@ -65,6 +67,10 @@ class CurveEditor {
 		this.height = height
 		this.offsetX = offsetX
 		this.offsetY = offsetY
+	}
+
+	setPhases(phases) {
+		this.phases = phases
 	}
 
 

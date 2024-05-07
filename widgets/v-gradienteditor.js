@@ -144,7 +144,6 @@ Vue.component("gradient-editor", {
 			}	
 
 			p.keyPressed = () => {
-		        console.log(p.keyCode)
 		        if (p.keyCode === 8 || p.keyCode === 46) {
 		        	let pt = this.closestPt()
 		            this.gradient.points = this.gradient.points.filter(s => s!== pt)

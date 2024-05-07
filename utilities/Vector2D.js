@@ -31,6 +31,9 @@ function objToInlineStyle(styleObj) {
 }
 
 class Vector2D {
+	static random(w,h,x=0,y=0) {
+		return new Vector2D(Math.random()*w + x, Math.random()*h + y)
+	}
 	static polar(r, theta) {
 		return new Vector2D(r*Math.cos(theta), r*Math.sin(theta))
 	}
@@ -128,6 +131,10 @@ class Vector2D {
 	
 	isWithin(x0, y0, x1, y1) {
 		return this.x >= x0 && this.x <= x1 && this.y >= y0 && this.y <= y1
+	}
+
+	isWithinBox({x, y, w, h}) {
+		return this.x >= x && this.x <= x + w && this.y >= y && this.y <= y + h
 	}
 	
 	// =========

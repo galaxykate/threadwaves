@@ -159,7 +159,7 @@ let noise = (() => {
 })()
 
 
-function convertToFixedPrecision(obj, precision) {
+function convertToFixedPrecision(obj, precision, multiline) {
   // Helper function to recursively convert floating-point numbers to fixed precision
   function convert(obj) {
     if (typeof obj === 'number' && !Number.isInteger(obj)) {
@@ -180,8 +180,17 @@ function convertToFixedPrecision(obj, precision) {
   // Convert the object
   const objWithFixedPrecision = convert(obj);
   
-  // Convert object to JSON string
-  return JSON.stringify(objWithFixedPrecision);
+  // Now stringify the object
+  return objWithFixedPrecision
+}
+
+function customStringify(data) {
+  return JSON.stringify(data, (key, value) => {
+    if (Array.isArray(value)) {
+      return '[' + value.map(val => JSON.stringify(val)).join(',') + ']';
+    }
+    return value;
+  }, 2);
 }
 
 function makeP5Draggable({p, range=10, remove, move, getDraggable, dblclick, click, pickup, drop, drag, hoverEnter, hoverExit}) {
@@ -208,7 +217,6 @@ function makeP5Draggable({p, range=10, remove, move, getDraggable, dblclick, cli
     }
 
     p.keyPressed = () => {
-        console.log(p.keyCode)
         if (p.keyCode === 8 || p.keyCode === 46)
             remove?.(getClosest())
     }
@@ -254,6 +262,32 @@ function makeP5Draggable({p, range=10, remove, move, getDraggable, dblclick, cli
     }
 }
 
+
+function getAtSequence(pts, pct) {
+    if (pts.length === 0)
+        throw("No points")
+
+
+    let pt0,pt1
+    
+    for (var i = 0; i < pts.length; i++) {
+        pt0 = pts[i - 1]
+        pt1 = pts[i]
+        if (pct < pt1.pct) {
+            if (i === 0) {
+                // Off the beginning
+                
+                return lerpSequencePoints(pt1, pt1, 0)
+            }
+
+            let subPct = (pct - pt0.pct)/(pt1.pct - pt0.pct)
+            return lerpSequencePoints(pt0, pt1, subPct)
+        }
+    }
+
+    return lerpSequencePoints(pt1, pt1, 0)
+}
+
 function calculateListOverlap(a, b) {
     const setA = new Set(a);
     const setB = new Set(b);
@@ -269,9 +303,61 @@ function calculateListOverlap(a, b) {
     }
 }
 
-function lerp(c0, c1, pct) {
-    return c0 + pct*(c1 - c0)
+
+function mapObject(obj, fxn, skipUndefined) {
+
+  let obj2 = {}
+  for (var key in obj) {
+    let val =  fxn(obj[key], key)
+    if (val !== undefined || !skipUndefined)
+      obj2[key] = val
+  }
+  return obj2
 }
+
+
+function mapObjectToArray(obj, fxn, skipUndefined) {
+
+  let arr = Object.keys(obj).map(key => fxn(obj[key], key))
+  if (skipUndefined)
+    arr = arr.filter(x => x !== undefined)
+  return arr
+}
+
+
+function lerp(v0, v1, pct) {
+    if (v0 === undefined)
+        throw("No value for v0 in lerp")
+    if (v1 === undefined)
+        throw("No value for v1 in lerp")
+    if (pct === undefined)
+        throw("No value for pct in lerp")
+    if (typeof v0 === 'number')
+        return (v1 - v0)*pct + v0
+    if (Array.isArray(v0)) {
+        return v0.map((v, i) => (v1[i] - v0[i])*pct + v0[i])
+    }
+    if (typeof v0 === 'object') {
+        let obj = mapObject(v0, (val, key) => (v1[key] - v0[key])*pct + v0[key])
+        return obj
+    }
+}
+
+
+function lerpSequencePoints(pt0, pt1, pct) {
+    if (pt0 === undefined)
+        throw("No value for pt0 in lerp")
+    if (pt1 === undefined)
+        throw("No value for pt1 in lerp")
+    if (pct === undefined)
+        throw("No value for pct in lerp")
+    
+    let v0 = pt0.val
+    let v1 = pt1.val
+    
+    return lerp(v0, v1, pct)
+}
+
 function constrain(x, min, max) {
     return Math.min(max, Math.max(x, min))
 }

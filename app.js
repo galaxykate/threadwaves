@@ -8,7 +8,56 @@
 
 // calculateListOverlap(["a", "b", "c"], ["b", "c", "d", "f"])
 
+function randomGradient(count = 10, mode) {
+  let gr = {
+    type: "gradient",
+    pts: [],
+    mode: mode || (Math.random()>.5?"HSL":"RGB")
+  }
+  for (var i = 0; i < count; i++) {
+    let pct = i/(count-1)
+    if (pct !== 0 && pct !== 1)
+      pct += (Math.random() - .5)/count
+
+    gr.pts.push({
+      id: crypto.randomUUID(),
+      pct,
+      val: gr.mode === "RGB"?[Math.random()*255, Math.random()*255, Math.random()*255]:
+        [Math.random()*360, Math.random()*40 + 60, Math.random()*100]
+    })
+  }
+  return gr
+}
+
+function randomCurve(count = 10, min=0, max=1) {
+  let curve = {
+    type: "curve",
+    pts: []
+  }
+
+  
+
+  for (var i = 0; i < count; i++) {
+    let pct = i/(count-1)
+    if (pct !== 0 && pct !== 1)
+      pct += (Math.random() - .5)/count
+    curve.pts.push({
+      id: crypto.randomUUID(),
+      pct,
+      val: Math.random()*(max-min) + min
+    })
+  }
+  return curve
+}
+
+
+let testSequences = {
+  
+}
+
+
 let app = {
+  dim: [700,400], 
   tracker:new Tracker({
     mediapipePath:"/mediapipe/",
     // handLandmarkerPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/",
@@ -34,7 +83,19 @@ let app = {
   },
   curve: new AnimationCurve(),
   gradient: new Gradient(),
-  experience: new Experience()
+  experience: new Experience(),
+  p: undefined,
+  act: undefined,
+
+  animation: new Animation({
+    channels:{
+      fill: randomGradient(),
+      stroke: randomGradient(),
+      radius: randomCurve(),
+      aspect: randomCurve(),
+      strokeWeight: randomCurve(),
+    }
+  }),
 }
 
 
@@ -48,10 +109,11 @@ document.addEventListener("DOMContentLoaded", (event) => {
     <div id="main-drawing" ref="p5"></div>
 
     <div class="controls">
-     
-      <curve-editor v-if="true" :curve="curve" />
-   
-      <gradient-editor v-if="true" :gradient="gradient" />
+      <div v-if="act">{{act.id}}</div>
+
+      <anim-editor v-if="true" :animation="animation" />
+      <curve-editor v-if="false" :curve="curve" />
+      <gradient-editor v-if="false" :gradient="gradient" />
    
     
       <motion-recorder :tracker="tracker" v-if="false" />
@@ -65,7 +127,36 @@ document.addEventListener("DOMContentLoaded", (event) => {
     </div>`,
 
     methods: {
+      setup() {
+        this.setAct("test")
+        // this.tracker.createCaptureAndInitTracking(p)
+      },
 
+      setAct(id) {
+        let act = ACTS.find(act => act.id === id)
+       
+        console.log("START ACT", act.id)
+        this.act = act
+        console.log(app)
+        this.act.setup(app)
+
+      },
+
+      draw({p, time}) {
+        p.background(190, 100, 90)
+
+        this.time.update()
+
+        this.experience.update(app)
+        this.experience.draw(app)
+        
+        // Try to detect faces
+        app.tracker.detect()
+        if (app.debugOptions.showTrackerDebug)
+          app.tracker.drawDebugData(p)
+        
+        this.act.draw(app)
+      }
     },
 
     computed: {
@@ -77,6 +168,8 @@ document.addEventListener("DOMContentLoaded", (event) => {
     watch: {
 
     },
+
+
 
     mounted() {
 
@@ -92,39 +185,18 @@ document.addEventListener("DOMContentLoaded", (event) => {
         }
       }) 
 
-      // Create a p5 object for whatever
+      // Basic p5
       new p5((pNew) => {
         p = pNew
-
-      
-
-        // We have a new "p" object representing the sketch
-
-        this.capture;
+        app.p = p
+        
         p.setup = () => {
-          p.createCanvas(600, 500);
+          p.createCanvas(...app.dim);
           p.colorMode(p.HSL);
-          // this.tracker.createCaptureAndInitTracking(p)
-         
+          this.setup(app)
         };
+        p.draw = () => this.draw(app)
 
-        p.draw = () => {
-          p.background(190, 100, 90)
-
-          this.time.update()
-
-          this.experience.update(app)
-          this.experience.draw(app)
-          
-          // Try to detect faces
-          app.tracker.detect()
-
-          if (app.debugOptions.showTrackerDebug)
-            app.tracker.drawDebugData(p)
-          
-
-
-        };
       }, this.$refs.p5);
     },
 
