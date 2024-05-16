@@ -307,13 +307,13 @@ const Tracker = (function () {
       let dim = this.dimensionality
       let count = data.length/dim
       this.landmarks.forEach((lmk,index) => {
-          let arr = data.slice(index*dim, (index+1)*dim) 
+        let arr = data.slice(index*dim, (index+1)*dim) 
           // arr[0] += 20
-          lmk.setTo(arr)
+        lmk.setTo(arr)
           // if (this.isActive)
           //   console.log(arr)
       })
-  
+
     }
 
     get flatStringData() {
@@ -398,7 +398,7 @@ const Tracker = (function () {
       });
     }
 
-   
+
   }
 
   const CATEGORIES = [
@@ -689,156 +689,158 @@ const Tracker = (function () {
    }
 
 
-   async createCaptureAndInitTracking(p) {
+   async createCaptureAndInitTracking(p, index=0) {
     // Make a camera capture
-    this.capture = p.createCapture(p.VIDEO)
-    this.capture.size(...this.captureDim)
-    this.capture.hide()
+   
+    navigator.mediaDevices.enumerateDevices().then((devices)  => {
+      // Get all the devices and pick one
+      let device = devices[index] || devices[0]
 
-    // We have to wait until P5 has started the capture,
-    // - but it doesn't give us a callback, so we're doing it the bad way by waiting
-    let count = 0;
-    const maxCount = 100;
-    const interval = 50;
-    const intervalId = setInterval(() => {
+      console.log("Video id:", device.label, device.deviceId)
+      // Now that we have a device, initiate tracking
+      this.capture = p.createCapture({
+        video: {
+          deviceId: {
+            exact: device.deviceId // Replace with your specific device ID
+          }
+        }
+      })
 
-      if (this.capture.elt.width > 0) {
-      // WE HAVE A CAPTURE
-      // If the condition is met, stop the loop 
+      this.capture.size(...this.captureDim)
+      this.capture.hide()
 
-        clearInterval(intervalId);
-        console.log("Condition met, stopping loop.");
+      // We have to wait until P5 has started the capture,
+      // - but it doesn't give us a callback, so we're doing it the bad way by waiting
+      let count = 0;
+      const intervalId = setInterval(() => {
+        if (this.capture.elt.width > 0) {
+          // NOW start tracking
+          clearInterval(intervalId);
+          this.initTracking();
+        } 
+        else if (count >= 100) {
+          // If 100 iterations have occurred without meeting the condition, stop the loop
+          clearInterval(intervalId);
+          console.warn("No capture created");
+        }
+        count++;
+      }, 50);
 
-      // Set our video source
-        this.video = this.capture
-
-      // NOW start tracking
-        this.initTracking();
-      } 
-
-      else if (count >= maxCount) {
-      // If 100 iterations have occurred without meeting the condition, stop the loop
-        clearInterval(intervalId);
-        console.warn("No capture created");
-      }
-
-      count++;
-    }, interval);
-
+    })
   }
 
-  async initTracking() {
-    this.isActive = true;
-    console.log("TRACKER - initiate tracking!");
-    this.mediapipe_module = await import(
-      this.mediapipePath + "vision_bundle.js"
-      );
+async initTracking() {
+  this.isActive = true;
+  console.log("TRACKER - initiate tracking!");
+  this.mediapipe_module = await import(
+    this.mediapipePath + "vision_bundle.js"
+    );
 
-    this.vision = await this.mediapipe_module
-    .FilesetResolver.forVisionTasks(this.mediapipePath);
+  this.vision = await this.mediapipe_module
+  .FilesetResolver.forVisionTasks(this.mediapipePath);
 
-    this.initHandTracking();
-    this.initFaceTracking();
+  this.initHandTracking();
+  this.initFaceTracking();
   // this.initPoseTracking();
+}
+
+
+
+setToRecordingFrame(frame, ogAdjustment) {
+  if (frame.faces[0]) {
+    this.faces[0].isActive = true;
+    this.faces[0].setLandmarksFromRecording(frame.faces[0], ogAdjustment);
   }
 
-  
+  if (frame.hands[0]) {
+    this.hands[0].isActive = true;
+    this.hands[0].setLandmarksFromRecording(frame.hands[0], ogAdjustment);
+  }
 
-  setToRecordingFrame(frame, ogAdjustment) {
-    if (frame.faces[0]) {
-      this.faces[0].isActive = true;
-      this.faces[0].setLandmarksFromRecording(frame.faces[0], ogAdjustment);
-    }
+  if (frame.hands[1]) {
+    this.hands[1].isActive = true;
+    this.hands[1].setLandmarksFromRecording(frame.hands[1], ogAdjustment);
+  }
 
-    if (frame.hands[0]) {
-      this.hands[0].isActive = true;
-      this.hands[0].setLandmarksFromRecording(frame.hands[0], ogAdjustment);
-    }
+  this.afterUpdate();
+}
 
-    if (frame.hands[1]) {
-      this.hands[1].isActive = true;
-      this.hands[1].setLandmarksFromRecording(frame.hands[1], ogAdjustment);
-    }
+async detect() {
+  let t = performance.now();
+    // Make sure we are not making double predictions?
+  if (t - this.lastPredictionTime > 10) {
+    this.predictFace();
+    this.predictHand();
 
+
+    this.afterDetect()
+
+      // Probably wrong with async, may be a frame behind
     this.afterUpdate();
   }
 
-  async detect() {
-    let t = performance.now();
-    // Make sure we are not making double predictions?
-    if (t - this.lastPredictionTime > 10) {
-      this.predictFace();
-      this.predictHand();
+  this.lastPredictionTime = t;
+}
+
+async afterUpdate() {
+
+}
+
+async afterDetect() {
+  this.afterDetectFxns.forEach(fxn => fxn(this))
+}
 
 
-      this.afterDetect()
+async predictHand() {
+  let startTimeMs = performance.now();
+  let data = this.handLandmarker?.detectForVideo(this.capture.elt, startTimeMs);
+  if (data) {
+    this.hands.forEach((hand, handIndex) => {
+      let landmarks = data.landmarks[handIndex];
 
-      // Probably wrong with async, may be a frame behind
-      this.afterUpdate();
-    }
-
-    this.lastPredictionTime = t;
-  }
-
-  async afterUpdate() {
-
-  }
-
-  async afterDetect() {
-    this.afterDetectFxns.forEach(fxn => fxn(this))
-  }
-
-
-  async predictHand() {
-    let startTimeMs = performance.now();
-    let data = this.handLandmarker?.detectForVideo(this.video.elt, startTimeMs);
-    if (data) {
-      this.hands.forEach((hand, handIndex) => {
-        let landmarks = data.landmarks[handIndex];
-
-        if (landmarks) {
-          hand.isActive = true;
-          hand.handedness = data.handednesses[handIndex];
-          let videoDimensions = [this.video.elt.width, this.video.elt.height];
-          hand.setLandmarksFromTracker(landmarks, videoDimensions);
-        } else {
+      if (landmarks) {
+        hand.isActive = true;
+        hand.handedness = data.handednesses[handIndex];
+        let videoDimensions = [this.capture.elt.width, this.capture.elt.height];
+        hand.setLandmarksFromTracker(landmarks, videoDimensions);
+      } else {
           // No face active here
-          hand.isActive = false;
-        }
-      });
-    }
+        hand.isActive = false;
+      }
+    });
   }
+}
 
-  async predictFace() {
-    let startTimeMs = performance.now();
+async predictFace() {
+  let startTimeMs = performance.now();
 
-    let data = this.faceLandmarker?.detectForVideo(this.video.elt, startTimeMs);
+  let data = this.faceLandmarker?.detectForVideo(this.capture.elt, startTimeMs);
 
-    if (data) {
-      this.faces.forEach((face, faceIndex) => {
-        let landmarks = data.faceLandmarks[faceIndex];
-        let blendShapes = data.faceBlendshapes[faceIndex];
+  if (data) {
+    this.faces.forEach((face, faceIndex) => {
+      let landmarks = data.faceLandmarks[faceIndex];
+      let blendShapes = data.faceBlendshapes[faceIndex];
 
         // Set the face to these landmarks
-        if (landmarks) {
-          face.isActive = true;
-          let videoDimensions = [this.video.elt.width, this.video.elt.height];
-          face.setLandmarksFromTracker(landmarks, videoDimensions);
-        } else {
+      if (landmarks) {
+        face.isActive = true;
+        let videoDimensions = [this.capture.elt.width, this.capture.elt.height];
+        face.setLandmarksFromTracker(landmarks, videoDimensions);
+      } else {
           // No face active here
-          face.isActive = false;
-        }
-      });
-    }
+        face.isActive = false;
+      }
+    });
   }
+}
 
-  async predictPose() {
-    let startTimeMs = performance.now();
-    this.poseLandmarks = this.poseLandmarker?.detectForVideo(
-      this.video.elt,
-      startTimeMs
-      );
-  }
+async predictPose() {
+  let startTimeMs = performance.now();
+  this.poseLandmarks = this.poseLandmarker?.detectForVideo(
+    this.capture.elt,
+    startTimeMs
+    );
+}
 
   //------------------------------------------------------------------------
   // Start hand tracking
@@ -846,22 +848,22 @@ const Tracker = (function () {
   // https://codepen.io/mediapipe-preview/pen/gOKBGPN
   // https://mediapipe-studio.webapps.google.com/studio/demo/hand_landmarker
 
-  async initHandTracking() {
+async initHandTracking() {
     // Create a landmark-tracker we can query for latest landmarks
-    this.handLandmarker =
-    await this.mediapipe_module.HandLandmarker.createFromOptions(
-      this.vision,
+  this.handLandmarker =
+  await this.mediapipe_module.HandLandmarker.createFromOptions(
+    this.vision,
         // Handtracking settings
-      {
-        numHands: this.config.maxNumHands,
-        runningMode: "VIDEO",
-        baseOptions: {
-          delegate: this.config.cpuOrGpuString,
-          modelAssetPath: this.handLandmarkerPath +  "hand_landmarker.task",
-        },
-      }
-      );
-  }
+    {
+      numHands: this.config.maxNumHands,
+      runningMode: "VIDEO",
+      baseOptions: {
+        delegate: this.config.cpuOrGpuString,
+        modelAssetPath: this.handLandmarkerPath +  "hand_landmarker.task",
+      },
+    }
+    );
+}
 
   //------------------------------------------------------------------------
   // Start pose tracking
@@ -869,43 +871,43 @@ const Tracker = (function () {
   // https://codepen.io/mediapipe-preview/pen/abRLMxN
   // https://developers.google.com/mediapipe/solutions/vision/pose_landmarker
 
-  async initPoseTracking() {
+async initPoseTracking() {
     // Which model to use? Options: lite or full
 
-    const poseModelPath = this.poseLandmarkerPath + "pose_landmarker_full.task";
+  const poseModelPath = this.poseLandmarkerPath + "pose_landmarker_full.task";
 
     // Create a landmark-tracker we can query for latest landmarks
-    this.poseLandmarker =
-    await this.mediapipe_module.PoseLandmarker.createFromOptions(
-      this.vision,
-      {
-        numPoses: this.config.maxNumPoses,
-        runningMode: "VIDEO",
-        baseOptions: {
-          modelAssetPath: poseModelPath,
-          delegate: this.config.cpuOrGpuString,
-        },
-      }
-      );
-  }
+  this.poseLandmarker =
+  await this.mediapipe_module.PoseLandmarker.createFromOptions(
+    this.vision,
+    {
+      numPoses: this.config.maxNumPoses,
+      runningMode: "VIDEO",
+      baseOptions: {
+        modelAssetPath: poseModelPath,
+        delegate: this.config.cpuOrGpuString,
+      },
+    }
+    );
+}
 
-  async initFaceTracking() {
+async initFaceTracking() {
     // Create a landmark-tracker we can query for latest landmarks
-    this.faceLandmarker =
-    await this.mediapipe_module.FaceLandmarker.createFromOptions(
-      this.vision,
-      {
-        numFaces: this.config.maxNumFaces,
-        runningMode: "VIDEO",
-        outputFaceBlendshapes: this.config.doAcquireFaceMetrics,
-        baseOptions: {
-          delegate: this.config.cpuOrGpuString,
-          modelAssetPath:
-          this.faceLandmarkerPath + "face_landmarker.task",
-        },
-      }
-      );
-  }
+  this.faceLandmarker =
+  await this.mediapipe_module.FaceLandmarker.createFromOptions(
+    this.vision,
+    {
+      numFaces: this.config.maxNumFaces,
+      runningMode: "VIDEO",
+      outputFaceBlendshapes: this.config.doAcquireFaceMetrics,
+      baseOptions: {
+        delegate: this.config.cpuOrGpuString,
+        modelAssetPath:
+        this.faceLandmarkerPath + "face_landmarker.task",
+      },
+    }
+    );
+}
 }
 
 return Tracker

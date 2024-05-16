@@ -5,6 +5,14 @@
 // ---------------------------------------------------
 // ---------------------------------------------------
 // Colors
+function reduceAlpha({p, amt=.2}) {
+  // Manipulate the alpha channel of every pixel
+  p.loadPixels();
+  for (let i = 0; i < p.pixels.length; i += 4) {
+    p.pixels[i + 3] = p.pixels[i + 3] * amt; // Reduce alpha by 50%
+  }
+  p.updatePixels();
+}
 
 function hexToHSL(H) {
   // Convert hex to RGB first

@@ -24,8 +24,6 @@ class HeartBeatTime {
     // a SimCity style heartbeat
 
     constructor({timeSignature=12, maxDT=100,startTime, beatEvery=5, loopOver=0}={})  {
-        this.startTime = startTime === undefined?Date.now():startTime
-        this.lastUpdate = this.startTime
         this.dt = 1
         this.t = 0
         this.maxDT = maxDT
@@ -33,7 +31,11 @@ class HeartBeatTime {
         this.beat = 0
         this.measure = 0
         this.frame = 0
-
+        this.mult = .001
+        
+        this.startTime = startTime === undefined?Date.now()*this.mult:startTime
+        this.lastUpdate = this.startTime
+        
         this.speed = 1
 
         this.isPaused = 0
@@ -67,7 +69,7 @@ class HeartBeatTime {
 
     update(currentTime) {
         if (currentTime=== undefined)
-            currentTime = Date.now()
+            currentTime = Date.now()*this.mult
 
         // Record the clock time even when paused
        

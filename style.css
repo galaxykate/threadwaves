@@ -1,48 +1,68 @@
 body {
-  display: flex;
-  height: 100vh; /* Full viewport height */
-  flex-direction: column; /* Stack the children vertically */
   margin: 0;
   font-family: Arial, sans-serif;
+ 
+  height: 100vh; /* Full viewport height */
+  display: flex;
+  flex-direction: column; /* Stack the children vertically */
 }
 
-header {
-  box-shadow: 0px 2px 3px rgba(0, 0, 0, .4);
-  z-index: 100;
-}
+.background-holder {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 2500px;
+      height: 1500px;
+      z-index: -3; /* Ensure the background is behind everything else */
+      background-image: url("img/paper0.jpg");
+      background-repeat: repeat;
+ 
+    }
 
-h3 {
-  margin: 7px 0px 0px 0px;
-}
+
 
 #app {
- z-index: 50;
- flex: 1; /* To allow the container to grow and consume the available space */
- display: flex;
- flex-direction: column;
- overflow: hidden;
+  z-index: 50;
+  flex: 1; /* To allow the container to grow and consume the available space */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-main {
-  flex: 1; /* To allow main to grow and consume the available space */
 
+.image-frame {
+  mix-blend-mode: multiply; /* Apply CSS blend mode */
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 200px; /* Specific width for the image frame */
+  z-index: 20; /* Ensure the image is behind other elements */
+}
+
+.image-frame img {
+  position: absolute;
+  width: 100%;
+  mix-blend-mode: multiply; /* Apply CSS blend mode */
 }
 
 .canvas-holder {
-  position: relative;
-  background-color: grey;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: grey; /* Background color to blend with */
+  z-index: -2; /* Ensure the canvas is behind the image */
 }
 
-
-button {
-  font-size: 16px;
-  margin: 2px;
+#main-drawing canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  mix-blend-mode: multiply; /* Apply CSS blend mode */
 }
-
-button.active {
-  background-color: hsl(100, 100%, 50%);
-}
-
 
 canvas {
   position: relative;
@@ -51,13 +71,9 @@ canvas {
   box-shadow: 0px 2px 8px rgba(0, 0, 0, .5);
 }
 
-.tools {
-  max-width: 300px;
-  
-  box-shadow: 0px 2px 8px rgba(0, 0, 0, .5);
-}
 
 .controls {
+  z-index: 100;
   background-color: hsla(100, 100%, 100%, .9);
   border: 2px solid magenta;
   box-shadow: 0px 2px 8px rgba(0, 0, 0, .5);
@@ -66,49 +82,4 @@ canvas {
   right: 0px;
   display: flex;
   flex-direction: column;
-}
-
-
-.controls-section {
-  margin: 10px;
-  padding: 6px;
-
-  box-shadow: 0px 2px 1px rgba(0, 0, 0, .5);
-}
-
-.columns {
-   overflow: hidden;
-  flex: 1;s
-  display: flex;
-  flex-direction: row;
-}
-
-.column {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  flex: 1;
-
-}
-
-.slider-label {
-  font-size: 80%;
-  font-style: italic;
-}
-.panel {
-  flex: 1
-}
-
-.problem {
-  color: hsla(0, 100%,40%, 1);
-}
-
-
-.active {
-  background-color: hsla(180, 100%, 80%, 1);
-}
-
-.widget {
-  position: relative;
-  margin: 10px;
 }

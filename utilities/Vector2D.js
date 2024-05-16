@@ -74,8 +74,19 @@ class Vector2D {
  
  
 	constructor(x=0, y=0) {
-		this.x = x;
-		this.y = y;
+		if (!isNaN(x.x) && !isNaN(x.y)) {
+			this.x = x.x
+			this.y = x.y
+		}
+		else if (!isNaN(x[0]) && !isNaN(x[1])) {
+			this.x = x[0]
+			this.y = x[1]
+		}
+		else if (!isNaN(x) && !isNaN(y)) {
+			this.x = x;
+			this.y = y;
+		}
+		
 	}
 	clone() {
 		return new Vector2D(this.x, this.y);
@@ -203,6 +214,12 @@ class Vector2D {
 		return this
 	}
 
+	setToRandom(x0, x1, y0, y1) {
+		this.x = Math.random()*(x1-x0) + x0
+		this.y = Math.random()*(y1-y0) + y0
+		return this
+	}
+
 	setToPolar(r, theta) {
 		this.x = r*Math.cos(theta)
 		this.y = r*Math.sin(theta)
@@ -210,8 +227,20 @@ class Vector2D {
 	}
 
 	setToLerp(v0, v1, pct) {
-		this.x = v0.x*(1-pct) + v1.x*pct
-		this.y = v0.y*(1-pct) + v1.y*pct
+		let x0 = Array.isArray(v0)?v0[0]:v0.x
+		let y0 = Array.isArray(v0)?v0[1]:v0.y
+		let x1 = Array.isArray(v1)?v1[0]:v1.x
+		let y1 = Array.isArray(v1)?v1[1]:v1.y
+
+		if (isNaN(pct))
+			console.warn("Non-numeric lerp", pct)
+		if (isNaN(x0) || isNaN(y0))
+			console.warn("Wrong vector format", v0)
+		if (isNaN(x1) || isNaN(y1))
+			console.warn("Wrong vector format", v1)
+
+		this.x = x0*(1-pct) + y1*pct
+		this.y = y0*(1-pct) + y1*pct
 		return this
 	}
 
@@ -221,9 +250,16 @@ class Vector2D {
 		return this
 	}
 
-	setToMultiple(m, v) {
-		this.x = m*v.x
-		this.y = m*v.y
+	setToMultiple(v, m) {
+		let x = Array.isArray(v)?v[0]:v.x
+		let y = Array.isArray(v)?v[1]:v.y
+		if (isNaN(m))
+			console.warn("Non-numeric scalar", m)
+		if (isNaN(x) || isNaN(y))
+			console.warn("Wrong vector format", v)
+
+		this.x = m*x
+		this.y = m*y
 		return this
 	}
 
@@ -234,11 +270,18 @@ class Vector2D {
 		return this
 	}
 
+	setToDifference(pt0, pt1) {
+		this.x = pt0.x - pt1.x
+		this.y = pt0.y - pt1.y
+		return this
+	}
+
 	setToOffset(pt0, pt1) {
 		this.x = pt1.x - pt0.x
 		this.y = pt1.y - pt0.y
 		return this
 	}
+
 
 	// =========
 	// Adders/Multipliers
@@ -272,7 +315,7 @@ class Vector2D {
 		return this
 	}
 
-lerpTo(pt, pct) {
+	lerpTo(pt, pct) {
 		this.x = (1 - pct)*this.x + pct*pt.x
 		this.y = (1 - pct)*this.y + pct*pt.y
 		return this
@@ -373,7 +416,15 @@ lerpTo(pt, pct) {
 		p.circle(...this, radius)
 	}
 
-	drawArrow(p, {v, multiplyLength=1, normalOffset=0,  startOffset=0, endOffset=0, color}) {
+	drawPolarCircle(p, r, theta, radius=10) {
+		p.circle(this.x + r*Math.cos(theta), this.y + r*Math.sin(theta), radius)
+	}
+
+	drawPolarLine(p, r, theta, ) {
+		p.line(...this, this.x + r*Math.cos(theta), this.y + r*Math.sin(theta))
+	}
+
+	drawArrow({p, v, multiplyLength=1, normalOffset=0,  startOffset=0, endOffset=0, color}) {
 		
 		// Make points
 		let start = Vector2D.edgePoint({pt0:this, v, pct: 0, normalOffset, edgeOffset: startOffset})
@@ -414,6 +465,11 @@ lerpTo(pt, pct) {
 
 	toFixed(n=3) {
 		return `[${this.x.toFixed(n)}, ${this.y.toFixed(n)}]`
+	}
+ 
+
+ 	toString() {
+		return `[${this.x.toFixed(3)}, ${this.y.toFixed(3)}]`
 	}
  
 

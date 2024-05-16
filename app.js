@@ -6,58 +6,11 @@
 // GLOBAL VALUES, CHANGE IF YOU WANT
 
 
-// calculateListOverlap(["a", "b", "c"], ["b", "c", "d", "f"])
-
-function randomGradient(count = 10, mode) {
-  let gr = {
-    type: "gradient",
-    pts: [],
-    mode: mode || (Math.random()>.5?"HSL":"RGB")
-  }
-  for (var i = 0; i < count; i++) {
-    let pct = i/(count-1)
-    if (pct !== 0 && pct !== 1)
-      pct += (Math.random() - .5)/count
-
-    gr.pts.push({
-      id: crypto.randomUUID(),
-      pct,
-      val: gr.mode === "RGB"?[Math.random()*255, Math.random()*255, Math.random()*255]:
-        [Math.random()*360, Math.random()*40 + 60, Math.random()*100]
-    })
-  }
-  return gr
-}
-
-function randomCurve(count = 10, min=0, max=1) {
-  let curve = {
-    type: "curve",
-    pts: []
-  }
-
-  
-
-  for (var i = 0; i < count; i++) {
-    let pct = i/(count-1)
-    if (pct !== 0 && pct !== 1)
-      pct += (Math.random() - .5)/count
-    curve.pts.push({
-      id: crypto.randomUUID(),
-      pct,
-      val: Math.random()*(max-min) + min
-    })
-  }
-  return curve
-}
-
-
-let testSequences = {
-  
-}
+NOTE_COUNT = 3
 
 
 let app = {
-  dim: [700,400], 
+  dim: [1900,1100], 
   tracker:new Tracker({
     mediapipePath:"/mediapipe/",
     // handLandmarkerPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/",
@@ -70,99 +23,231 @@ let app = {
       return new Vector2D(0,0)
     }
   }),
-  points: [],
-  envelopes: [],
-  time:new HeartBeatTime({loopOver: 3}),
+
+  time:new HeartBeatTime({loopOver: 300}),
+
   debugOptions: {
     speed: 1,
+    actIndex:1,
     showTrackerDebug: false,
-    mode: "test"
+    detect: false,
+    showCapture: true
   },
   debugOptionsOptions: {
-    mode: ["test", "foo", "bar"]
+    actIndex: [0,1,2,3,4,5,6,7,8,9]
   },
-  curve: new AnimationCurve(),
-  gradient: new Gradient(),
-  experience: new Experience(),
+
+  sharedParticles: undefined,
+  animations: [],
+
+  acts: [ActTest, ActCarl, ActHistory, ActWind, ActThreads],
+
   p: undefined,
   act: undefined,
 
-  animation: new Animation({
-    channels:{
-      fill: randomGradient(),
-      stroke: randomGradient(),
-      radius: randomCurve(),
-      aspect: randomCurve(),
-      strokeWeight: randomCurve(),
+
+  startAct(index) {
+
+    this.debugOptions.actIndex = (index%this.acts.length)
+    let actClass = this.acts[index]
+
+
+    if (actClass) {
+      // console.log("Start", actClass, this.actIndex)
+
+      // Animation for the new act
+      let act = new actClass()
+      let anim = new Animation({time:this.time, id: act.toString(), smooth: true})
+      console.log("------------------\nSTART ACT " + act)
+
+      act.start(app)
+      anim.attack()
+
+      anim.payload.push(act)
+
+      // Decay any existing animations
+      this.animations.forEach(anim => {
+        anim.release({
+          t: 2
+        })
+      })
+      this.animations.push(anim)
+      
     }
-  }),
+  }
+
 }
 
 
 
 document.addEventListener("DOMContentLoaded", (event) => {
-  console.log("DOM fully loaded and parsed");
+
 
   new Vue({
     template: `<div id="app">
-
-    <div id="main-drawing" ref="p5"></div>
+    <div class="background-holder"></div>
+    <div id="main-drawing" ref="p5" class="p5-holder overlay"></div>
+    <div id="second-drawing" ref="pTop" class="p5-holder overlay"></div>
 
     <div class="controls">
-      <div v-if="act">{{act.id}}</div>
-
-      <anim-editor v-if="true" :animation="animation" />
+      <button @click="midiKick(0)">MIDI KICK 0</button>
+      <button @click="midiKick(1)">MIDI KICK 1</button>
+      <button @click="midiKick(2)">MIDI KICK 2</button>
+      <!-- act data --> 
+      <div>
+        <table>
+          <tr :class="anim.cssClasses" v-for="anim in app.animations">
+            <td>
+              {{anim.id}}
+            </td>
+            <td>
+              {{anim.state}}:{{anim.pct.toFixed(2)}}
+            </td>
+          </tr>
+        </table>
+      </div>  
+      <flag-tracker 
+        id="debugOptions" 
+        :obj="app.debugOptions" 
+        :options="app.debugOptionsOptions"
+        />
+    
+      
+      <anim-editor v-if="false" :animation="animation" />
       <curve-editor v-if="false" :curve="curve" />
       <gradient-editor v-if="false" :gradient="gradient" />
    
     
-      <motion-recorder :tracker="tracker" v-if="false" />
-      <heartbeat-time :time="time"  v-if="false" />
+      <motion-recorder :tracker="app.tracker" v-if="false" />
+      <heartbeat-time :time="app.time"  v-if="false" />
 
-      <flag-tracker :obj="debugOptions" id="debugOptions" :options="debugOptionsOptions"/>
     </div>
-    
-    
 
+    <div>
+      
+      <image-frame v-for="img in images" :img="img" :key="img.idNumber" />
+      
+    </div>
+  
+    </div>
     </div>`,
 
     methods: {
+      midiKick(index) {
+        console.log("midi kick", index)
+        this.acts.forEach(act => act.kick(index))
+      },
+
+
       setup() {
-        this.setAct("test")
-        // this.tracker.createCaptureAndInitTracking(p)
+        
+        app.sharedParticles = new ParticleSystem({
+          count:40,
+          postCreate: (pt) => {
+            pt.setToRandom(0, p.width, 0, p.height)
+          }
+        })
+        
+        app.startAct(app.debugOptions.actIndex)
+
+        // Test the starting act
+        // for (var i = 0; i < 10; i++) {
+        //   setTimeout(() => {
+        //     app.startAct(app.debugOptions.actIndex)
+        //   }, i*1500)
+        
+        // }
+
+
+        this.app.tracker.createCaptureAndInitTracking(p, 1)
       },
 
-      setAct(id) {
-        let act = ACTS.find(act => act.id === id)
+      update({p, time}) {
+          //----------------
+        // UPDATE
+        app.time.update()
+
+        // update all the shared particle systems
+        
+      
+        if (app.debugOptions.detect === true) {
+          app.tracker.detect()
+        }
+        
+        app.sharedParticles.clearForces()
+
+        // Apply a bunch of forces
+        app.animations.forEach(anim => anim.update(app))
+
+        app.sharedParticles.move({p,time, dt: time.dt})
+
        
-        console.log("START ACT", act.id)
-        this.act = act
-        console.log(app)
-        this.act.setup(app)
-
       },
+
 
       draw({p, time}) {
-        p.background(190, 100, 90)
 
-        this.time.update()
+        // reduceAlpha(p, .05)
+        // Cleanup
+        app.animations = app.animations.filter(anim => !anim.isDead)
 
-        this.experience.update(app)
-        this.experience.draw(app)
+        
+      
+        
+        //----------------
+        // DRAW
+
+        let layers = ["bg", "main", "accent"]
+
+        layers.forEach(layer => {
+          
+          app.animations.forEach(anim => anim.draw({
+            p:layer==="accent"?app.pTop:app.p,
+            time, layer:layer}))
+        })
         
         // Try to detect faces
-        app.tracker.detect()
-        if (app.debugOptions.showTrackerDebug)
-          app.tracker.drawDebugData(p)
-        
-        this.act.draw(app)
+
+        if (app.debugOptions.detect === true) {
+          
+          if (app.debugOptions.showTrackerDebug)
+            app.tracker.drawDebugData(p)
+        }
+
+        // app.sharedParticles.drawDebug({p:app.pTop})
+        // console.log()
+
+        p.push()
+        p.scale(4, 4)
+
+        if (app.tracker.isActive && app.debugOptions.showCapture) {
+          p.image(app.tracker.capture, 30, 30)
+        }
+
+        p.pop()
       }
     },
 
     computed: {
-      activeEnvelopes() {
-        return this.envelopes.filter(e => e.isActive)
+      images() {
+        // console.log("images")
+        if (this.app.sharedParticles) {
+          let hasImage = this.app.sharedParticles.pts.filter(pt => pt.image !== undefined)
+          let images = hasImage.map(pt => pt.image)
+          return images
+        }
+        return []
+      },
+
+      acts() {
+        let acts = []
+        app.animations.forEach(anim => {
+          acts = acts.concat(anim.payload)
+        })
+        console.log(acts)
+        return acts
       }
+      
     },
 
     watch: {
@@ -174,36 +259,67 @@ document.addEventListener("DOMContentLoaded", (event) => {
     mounted() {
 
       initMidi({
-        onKeyUp: (note,velocity) => {
-        console.log("UP", note, velocity)
+        onKeyUp: ({note,velocity}) => {
+        // console.log("UP", note, velocity)
+
         }, 
-        onKeyDown: (note,velocity) => {
+        onKeyDown: ({note,velocity}) => {
            console.log("DOWN", note, velocity)
+           this.midiKick(note%NOTE_COUNT)
         }, 
-        onFader: (id, val) => {
-          console.log("FADER", id, val)
+        onFader: ({id, val}) => {
+          // console.log("FADER", id, val)
         }
       }) 
 
-      // Basic p5
+      // Make the main canvas
       new p5((pNew) => {
         p = pNew
         app.p = p
+
+         p.keyPressed = (ev) => {
+          console.log(p.key)
+           let num = parseInt(p.key)
+
+           if (!isNaN(num)) {
+              app.startAct(num)
+           } else {
+            if (p.key === "c") {
+              app.debugOptions.showCapture = !app.debugOptions.showCapture
+            }
+           }
+         }
+        
         
         p.setup = () => {
           p.createCanvas(...app.dim);
           p.colorMode(p.HSL);
           this.setup(app)
         };
-        p.draw = () => this.draw(app)
+
+        p.draw = () => {
+          this.update(app)
+          this.draw(app)
+        }
 
       }, this.$refs.p5);
+
+      // Make the second top-canvas
+      new p5((pNew) => {
+        // p = pNew
+        app.pTop = pNew
+        pNew.setup = () => {
+          pNew.createCanvas(...app.dim);
+          pNew.colorMode(p.HSL);
+          
+        };
+      }, this.$refs.pTop);
     },
 
     data() {
       return {
 
-        ...app
+        app
       };
     },
     el: "#app",

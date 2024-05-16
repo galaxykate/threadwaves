@@ -13,7 +13,7 @@ function initMidi({onKeyUp, onKeyDown, onFader}) {
   function onMIDISuccess(midiAccess) {
     console.log("Connected to MIDI")
     var inputs = midiAccess.inputs.values();
-    console.log(inputs)
+    // console.log(inputs)
 
     for (var input = inputs.next(); input && !input.done; input = inputs.next()) {
         // Each time there is a MIDI message, this event will be triggered
@@ -40,17 +40,19 @@ function initMidi({onKeyUp, onKeyDown, onFader}) {
   
     switch(command) {
     case 11:
-       console.log("Fader", command, channel, val, id)
+       console.log("🎶Fader", command, channel, val, id)
        onFader?.({id, val})
       return 
     case 14:
-       console.log("Pitch", command, channel, val, id)
+       console.log("🎶Pitch", command, channel, val, id)
         onFader?.({id:0, val})
        return
     case 9:
-      onKeyDown?.({note: id, velocity: val})
+       console.log("🎶KeyDown", val, id)
+       onKeyDown?.({note: id, velocity: val})
       return
     case 8:
+       console.log("🎶KeyUp", val, id)
        onKeyUp?.({note: id, velocity: val})
        return
     default:

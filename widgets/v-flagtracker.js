@@ -22,9 +22,9 @@ Vue.component("flag-tracker", {
 		obj: {
 			deep:true,
 			handler() {
-				console.log("obj changed")
+				// console.log("obj changed")
 				let data = JSON.stringify(this.obj)
-				console.log(data)
+				// console.log(data)
 				localStorage.setItem("flagtracker_" + this.id, data)
 			}
 		}
